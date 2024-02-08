@@ -33,19 +33,29 @@ defmodule FileShredder.CLI do
   defp display_list_of_files_that_will_be_shredded do
     # Elixir adds a new-line at the end of input, so we have to
     # replace that newline
-    input = get_file_path() |> String.trim()
+    file_path = get_file_path() |> String.trim()
 
     filename = collect_part_of_filename()
-    {:ok, dir_list} = File.ls(input)
 
-    files_to_shred =
-      dir_list
-      |> Enum.filter(fn file -> String.contains?(String.downcase(file), filename) end)
-      |> Enum.join("\n")
+    case File.ls(file_path) do
+      {:ok, dir_list} ->
+        files_to_shred =
+          dir_list
+          |> Enum.filter(fn file -> String.contains?(String.downcase(file), filename) end)
+          |> Enum.join("\n")
 
-    IO.puts("LIST OF FILES THAT WILL BE SHREDDED: \n\n" <> files_to_shred)
-    # clear()
-    {input, files_to_shred}
+        IO.puts("LIST OF FILES THAT WILL BE SHREDDED: \n\n" <> files_to_shred)
+        # clear()
+        {:ok, file_path, files_to_shred}
+
+      {:error, :enoent} ->
+        IO.puts("Path: #{file_path} was not found!")
+        {:error}
+
+      _ ->
+        IO.puts("Some kind of error occured during operation")
+        {:error}
+    end
   end
 
   defp confirmation_message({file_path, files_to_shred}) do
@@ -59,9 +69,11 @@ defmodule FileShredder.CLI do
 
   defp handle_user_response_to_confirmation_prompt({response, files_to_shred, file_path}) do
     case response do
-      "y" -> {"y", file_path, files_to_shred}
+      "y" ->
+        {"y", file_path, files_to_shred}
 
-      "n" -> "n"
+      "n" ->
+        "n"
 
       _ ->
         clear()
@@ -71,11 +83,18 @@ defmodule FileShredder.CLI do
   end
 
   defp shred_files({"y", file_path, files_to_shred}) do
-    clear()
-    String.split(
-      files_to_shred, "\n") |>
-      Enum.each(fn file_name -> "#{file_path}/#{file_name}" |> File.rm! end)
-    IO.puts("Files successfully shredded...")
+    try do
+      clear()
+      String.split(
+        files_to_shred,
+        "\n"
+      )
+      |> Enum.each(fn file_name -> "#{file_path}/#{file_name}" |> File.rm!() end)
+
+      IO.puts("Files successfully shredded...")
+    rescue
+      _e in File.Error -> IO.inspect("No file was found")
+    end
   end
 
   defp shred_files("n") do
@@ -83,9 +102,15 @@ defmodule FileShredder.CLI do
   end
 
   def main(_args) do
-    display_list_of_files_that_will_be_shredded()
-    |> confirmation_message()
-    |> handle_user_response_to_confirmation_prompt()
-    |> shred_files
+    case display_list_of_files_that_will_be_shredded() do
+      {:ok, file_path, files_to_shred} ->
+        {file_path, files_to_shred}
+        |> confirmation_message()
+        |> handle_user_response_to_confirmation_prompt()
+        |> shred_files
+
+      _ ->
+        {:error}
+    end
   end
 end
