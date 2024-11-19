@@ -1,3 +1,5 @@
+alias FileShredder.HandleProcess
+
 defmodule FileShredder.CLI do
   defp get_file_path do
     instruction =
@@ -36,32 +38,56 @@ defmodule FileShredder.CLI do
     input = get_file_path() |> String.trim()
 
     filename = collect_part_of_filename()
-    {:ok, dir_list} = File.ls(input)
 
-    files_to_shred =
-      dir_list
-      |> Enum.filter(fn file -> String.contains?(String.downcase(file), filename) end)
-      |> Enum.join("\n")
+    case File.ls(input) do
+      {:ok, dir_list} ->
+        files_to_shred =
+          dir_list
+          |> Enum.filter(fn file -> String.contains?(String.downcase(file), filename) end)
+          |> Enum.join("\n")
 
-    IO.puts("LIST OF FILES THAT WILL BE SHREDDED: \n\n" <> files_to_shred)
-    # clear()
-    {input, files_to_shred}
+        if files_to_shred === "" do
+          IO.puts("No file to shred...")
+        else
+          IO.puts("LIST OF FILES THAT WILL BE SHREDDED: \n\n" <> files_to_shred)
+        end
+
+        # clear()
+        {input, files_to_shred}
+
+      _ ->
+        IO.puts("File path does not exist: " <> input)
+        {:error, "file path not found"}
+    end
+  end
+
+  defp confirmation_message({:error, reason}) do
+    Process.exit(self(), reason)
   end
 
   defp confirmation_message({file_path, files_to_shred}) do
-    user_response =
-      IO.gets("Press Y if you wish to proceed with operation, else press N: ")
-      |> String.trim()
-      |> String.downcase()
+    if files_to_shred === "" do
+      {:abort, [], ""}
+    else
+      user_response =
+        IO.gets("Press Y if you wish to proceed with operation, else press N: ")
+        |> String.trim()
+        |> String.downcase()
 
-    {user_response, files_to_shred, file_path}
+      {user_response, files_to_shred, file_path}
+    end
   end
 
   defp handle_user_response_to_confirmation_prompt({response, files_to_shred, file_path}) do
     case response do
-      "y" -> {"y", file_path, files_to_shred}
+      :abort ->
+        {:abort, file_path}
 
-      "n" -> "n"
+      "y" ->
+        {"y", file_path, files_to_shred}
+
+      "n" ->
+        "n"
 
       _ ->
         clear()
@@ -71,15 +97,27 @@ defmodule FileShredder.CLI do
   end
 
   defp shred_files({"y", file_path, files_to_shred}) do
-    clear()
+    # clear()
+
+    {:ok, pid} = HandleProcess.start_link()
+
     String.split(
-      files_to_shred, "\n") |>
-      Enum.each(fn file_name -> "#{file_path}/#{file_name}" |> File.rm! end)
-    IO.puts("Files successfully shredded...")
+      files_to_shred,
+      "\n"
+    )
+    |> Enum.each(fn file_name ->
+      path_to_file = "#{file_path}/#{file_name}"
+      IO.puts("shredding #{path_to_file}")
+      HandleProcess.handle_file_shredding(pid, path_to_file)
+    end)
   end
 
   defp shred_files("n") do
     IO.puts("Operation aborted...")
+  end
+
+  defp shred_files({:abort, reason}) do
+    IO.puts(reason)
   end
 
   def main(_args) do
