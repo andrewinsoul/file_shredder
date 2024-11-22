@@ -97,19 +97,28 @@ defmodule FileShredder.CLI do
   end
 
   defp shred_files({"y", file_path, files_to_shred}) do
-    # clear()
-
     {:ok, pid} = HandleProcess.start_link()
 
-    String.split(
-      files_to_shred,
-      "\n"
-    )
-    |> Enum.each(fn file_name ->
-      path_to_file = "#{file_path}/#{file_name}"
-      IO.puts("shredding #{path_to_file}")
-      HandleProcess.handle_file_shredding(pid, path_to_file)
+    path_to_file =
+      String.split(
+        files_to_shred,
+        "\n"
+      )
+
+    path_to_file = path_to_file ++ [:kill]
+
+    Enum.each(path_to_file, fn file_name ->
+      if file_name == :kill do
+        HandleProcess.handle_file_shredding(pid, :kill)
+      else
+        path_to_file = "#{file_path}/#{file_name}"
+        IO.puts("shredding #{path_to_file}")
+        # {:ok, pid} = HandleProcess.start_link()
+        HandleProcess.handle_file_shredding(pid, path_to_file)
+      end
     end)
+    :timer.sleep(:infinity) # This ensures all async tasks are completed
+
   end
 
   defp shred_files("n") do
