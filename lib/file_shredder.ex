@@ -1,12 +1,8 @@
 alias FileShredder.HandleProcess
 
 defmodule FileShredder.CLI do
-  defp get_file_path do
-    instruction =
-      "Enter directory path relative to home that contain file(s) you wish to delete\nExample: movies/action: "
-
-    file_path = IO.gets(instruction)
-
+  @spec get_file_path(String.t()) :: String.t()
+  defp get_file_path(file_path) do
     cond do
       String.starts_with?(file_path, "/") ->
         Path.expand(
@@ -23,19 +19,23 @@ defmodule FileShredder.CLI do
     end
   end
 
+  @spec collect_part_of_filename() :: String.t()
   defp collect_part_of_filename do
     filename = IO.gets("Enter part of filename you wish to shred? ") |> String.trim()
     filename |> String.downcase()
   end
 
+  @spec collect_part_of_filename() :: String.t()
   defp clear() do
     IO.puts("\e[2J")
   end
 
-  defp display_list_of_files_that_will_be_shredded do
+  @spec display_list_of_files_that_will_be_shredded(String.t()) ::
+          {String.t(), list(String.t())} | {:error, String.t()}
+  defp display_list_of_files_that_will_be_shredded(file_path) do
     # Elixir adds a new-line at the end of input, so we have to
     # replace that newline
-    input = get_file_path() |> String.trim()
+    input = get_file_path(file_path) |> String.trim()
 
     filename = collect_part_of_filename()
 
@@ -61,10 +61,13 @@ defmodule FileShredder.CLI do
     end
   end
 
+  @spec confirmation_message({atom() | String.t(), String.t()}) :: boolean()
   defp confirmation_message({:error, reason}) do
     Process.exit(self(), reason)
   end
 
+  @spec confirmation_message({String.t(), String.t()}) ::
+          {String.t(), list(String.t()), String.t()}
   defp confirmation_message({file_path, files_to_shred}) do
     if files_to_shred === "" do
       {:abort, [], ""}
@@ -117,8 +120,9 @@ defmodule FileShredder.CLI do
         HandleProcess.handle_file_shredding(pid, path_to_file)
       end
     end)
-    :timer.sleep(:infinity) # This ensures all async tasks are completed
 
+    # This ensures all async tasks are completed
+    :timer.sleep(:infinity)
   end
 
   defp shred_files("n") do
@@ -130,7 +134,12 @@ defmodule FileShredder.CLI do
   end
 
   def main(_args) do
-    display_list_of_files_that_will_be_shredded()
+    instruction =
+      "Enter directory path relative to home that contain file(s) you wish to delete\nExample: movies/action: "
+
+    file_path = IO.gets(instruction)
+
+    display_list_of_files_that_will_be_shredded(file_path)
     |> confirmation_message()
     |> handle_user_response_to_confirmation_prompt()
     |> shred_files

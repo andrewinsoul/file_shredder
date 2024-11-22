@@ -20,7 +20,6 @@ defmodule FileShredder.HandleProcess do
       System.stop()
     else
       # Just to simulate a code that takes a while to process
-      :timer.sleep(2000)
       File.rm!(file_path)
       IO.puts("#{file_path} was successfully shredded...")
     end
