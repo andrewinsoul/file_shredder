@@ -1,7 +1,9 @@
 alias FileShredder.HandleProcess
 
 defmodule FileShredder.CLI do
+  @moduledoc false
   @spec get_file_path(String.t()) :: String.t()
+
   defp get_file_path(file_path) do
     cond do
       String.starts_with?(file_path, "/") ->
@@ -19,25 +21,41 @@ defmodule FileShredder.CLI do
     end
   end
 
-  @spec collect_part_of_filename() :: String.t()
-  defp collect_part_of_filename do
-    filename = IO.gets("Enter part of filename you wish to shred? ") |> String.trim()
-    filename |> String.downcase()
+  @doc """
+  Removes whitespaces from either side of the string & convert it to lowercase
+
+  ## Parameters
+
+    - file_name: String that represents input gotten from IO
+
+  ## Examples
+
+      iex> FileShredder.CLI.collect_part_of_filename("Sean")
+      "sean"
+
+      iex> FileShredder.CLI.collect_part_of_filename("     Nature      ")
+      "nature"
+
+  """
+  @spec collect_part_of_filename(String.t()) :: String.t()
+  def collect_part_of_filename(file_name) do
+    file_name
+    |> String.trim()
+    |> String.downcase()
   end
 
-  @spec collect_part_of_filename() :: String.t()
   defp clear() do
     IO.puts("\e[2J")
   end
 
-  @spec display_list_of_files_that_will_be_shredded(String.t()) ::
+  @spec display_list_of_files_that_will_be_shredded(String.t(), String.t()) ::
           {String.t(), list(String.t())} | {:error, String.t()}
-  defp display_list_of_files_that_will_be_shredded(file_path) do
+  defp display_list_of_files_that_will_be_shredded(file_path, file_name) do
     # Elixir adds a new-line at the end of input, so we have to
     # replace that newline
     input = get_file_path(file_path) |> String.trim()
 
-    filename = collect_part_of_filename()
+    filename = collect_part_of_filename(file_name)
 
     case File.ls(input) do
       {:ok, dir_list} ->
@@ -52,7 +70,6 @@ defmodule FileShredder.CLI do
           IO.puts("LIST OF FILES THAT WILL BE SHREDDED: \n\n" <> files_to_shred)
         end
 
-        # clear()
         {input, files_to_shred}
 
       _ ->
@@ -138,8 +155,9 @@ defmodule FileShredder.CLI do
       "Enter directory path relative to home that contain file(s) you wish to delete\nExample: movies/action: "
 
     file_path = IO.gets(instruction)
+    filename = IO.gets("Enter part of filename you wish to shred? ")
 
-    display_list_of_files_that_will_be_shredded(file_path)
+    display_list_of_files_that_will_be_shredded(file_path, filename)
     |> confirmation_message()
     |> handle_user_response_to_confirmation_prompt()
     |> shred_files
