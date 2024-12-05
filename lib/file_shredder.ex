@@ -125,7 +125,7 @@ defmodule FileShredder.CLI do
         "\n"
       )
 
-    path_to_file = path_to_file ++ [:kill]
+    path_to_file = [:kill | path_to_file] |> Enum.reverse()
 
     Enum.each(path_to_file, fn file_name ->
       if file_name == :kill do
