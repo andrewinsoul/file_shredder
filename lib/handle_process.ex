@@ -19,7 +19,6 @@ defmodule FileShredder.HandleProcess do
       IO.puts("Your files were successfully shredded")
       System.stop()
     else
-      # Just to simulate a code that takes a while to process
       File.rm!(file_path)
       IO.puts("#{file_path} was successfully shredded...")
     end
